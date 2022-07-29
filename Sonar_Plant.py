@@ -50,59 +50,52 @@ if __name__ == '__main__':
     for x in range(len(ang)): ang[x] = wrap_to_180(ang[x])
     rad = np.arange(start_dist, final_dist+dist_inc, dist_inc)
 
-    for r in range(5): # run the test 5 times
-        for angle in ang: # current angle in sweep around plant
-            for r in rad:
-                # Record 180 degree sweep of one xy coordinate 
-                temp_l = np.zeros((181,7000,5))
-                temp_r = np.zeros((181,7000,5))
+    for angle in ang: # current angle in sweep around plant
+        for r in rad:
+            # Record 180 degree sweep of one xy coordinate 
+            temp_l = np.zeros((181,7000,5))
+            temp_r = np.zeros((181,7000,5))
 
-                # Calculate xy coordinate based on angle sweep and radius from plant
-                x = r*np.cos(np.radians(angle)) 
-                y = r*np.sin(np.radians(angle))
+            # Calculate xy coordinate based on angle sweep and radius from plant
+            x = r*np.cos(np.radians(angle)) 
+            y = r*np.sin(np.radians(angle))
+            
+            start_ang = wrap_to_180(angle+90)
+            final_ang = wrap_to_180(start_ang + 180)
+            val_start = start_ang if start_ang < final_ang else final_ang
+            val_end = start_ang if start_ang > final_ang else final_ang
+            
+            for cur_ang in range(val_start, val_end+ang_inc, ang_inc):
+                if start_ang > final_ang:
+                    cur_ang = wrap_to_180(cur_ang + 180)
                 
-                start_ang = wrap_to_180(angle+90)
-                final_ang = wrap_to_180(start_ang + 180)
-                val_start = start_ang if start_ang < final_ang else final_ang
-                val_end = start_ang if start_ang > final_ang else final_ang
-                
-                for cur_ang in range(val_start, val_end+ang_inc, ang_inc):
-                    if start_ang > final_ang:
-                        cur_ang = wrap_to_180(cur_ang + 180)
-                    
-                    # travel code
-                    gps_robot.get_robot_pose(c)
-                    if abs(wrap_to_180(gps_robot.theta - a)) >= 3:
-                        gps_robot.travel(robot, c, x, y, a)
-                    else:
-                        move_robot.turn(a=ang_inc, bot=robot, smooth_stop=False, w_error=3.416)
+                # travel code
+                gps_robot.get_robot_pose(c)
+                if abs(wrap_to_180(gps_robot.theta - a)) >= 3:
+                    gps_robot.travel(robot, c, x, y, a)
+                else:
+                    move_robot.turn(a=ang_inc, bot=robot, smooth_stop=False, w_error=3.416)
 
-                    # echo code
-                    left5 = np.zeros((7000,5))
-                    right5 = np.zeros((7000,5))
+                # echo code
+                left5 = np.zeros((7000,5))
+                right5 = np.zeros((7000,5))
 
-                    # grab 5 measurements of echo data in the current pose
-                    for k in range(5):
-                        observe.one_echo()
-                        left5[:,k] = observe.echo['left']
-                        right5[:,k] = observe.echo['right']
+                # grab 5 measurements of echo data in the current pose
+                for k in range(5):
+                    observe.one_echo()
+                    left5[:,k] = observe.echo['left']
+                    right5[:,k] = observe.echo['right']
 
-                    temp_l[int(cur_ang)] = left5
-                    temp_r[int(cur_ang)] = right5
+                temp_l[int(cur_ang)] = left5
+                temp_r[int(cur_ang)] = right5
 
-                    # check for angle error, can replace this block with time.sleep(3)
-                    for delay in range(3):
-                        gps_robot.get_robot_pose(c)
-                        print(gps_robot.theta - cur_ang)
-                        time.sleep(1)
-
-                # save trial_dist
-                path = '/home/mendel/SonoBono/echo_data/'
-                file_name = str(r) + "_" + str(angle) + "_" + str(x) + "_" + str(y) + ".npz"
-                np.savez( os.path.join(path, file_name), left_data = temp_l, right_data = temp_r)
-                print("Saved ", file_name, "to path ", path)
-                garbage = [temp_l, temp_r, left5, right5]
-                del temp_l, temp_r, left5, right5
-                del garbage
+            # save trial_dist
+            path = '/home/mendel/SonoBono/echo_data/'
+            file_name = str(r) + "_" + str(angle) + "_" + str(x) + "_" + str(y) + ".npz"
+            np.savez( os.path.join(path, file_name), left_data = temp_l, right_data = temp_r)
+            print("Saved ", file_name, "to path ", path)
+            garbage = [temp_l, temp_r, left5, right5]
+            del temp_l, temp_r, left5, right5
+            del garbage
 
     robot.drive_stop()
